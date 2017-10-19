@@ -5,9 +5,10 @@ class CoffeeDetector:
 
     def __init__(self):
         self.camera = cv2.VideoCapture(0)
-    # Sets the window and the camera.
-    cv2.namedWindow("Logitech Camera", cv2.WINDOW_NORMAL)
-    capture = cv2.VideoCapture(0)
+        # Sets the window and the camera.
+        cv2.namedWindow("Logitech Camera", cv2.WINDOW_NORMAL)
+        self.capture = cv2.VideoCapture(0)
+        self.img = None
 
     def start_capture(self):
       while True:
@@ -19,9 +20,10 @@ class CoffeeDetector:
           break
         else:
           # Operations on the frame come here.
-          img = cv2.imread('images/verde03.jpg')
+          self.img = cv2.imread('images/maduro02.jpg')
+          # self.img = frame
           # denoise = cv2.fastNlMeansDenoisingColored(img, None, 10, 10, 7, 21)
-          filter = self.filter_rgb_ripe(img)
+          filter = self.filter_rgb_ripe(self.img)
           gray = cv2.cvtColor(filter, cv2.COLOR_RGB2GRAY)
           # The bigger the kernel_size value, the more processing time it takes.
           blur = cv2.GaussianBlur(gray, (3, 3), 0)
@@ -34,7 +36,7 @@ class CoffeeDetector:
           closing = cv2.morphologyEx(blur, cv2.MORPH_CLOSE, kernel)
 
           # Displays the resulting frame.
-          cv2.imshow("Original", img)
+          cv2.imshow("Original", self.img)
           cv2.imshow("Filter", filter)
           # cv2.imshow("Gray scale", gray)
           cv2.imshow("Blur", blur)
@@ -43,6 +45,10 @@ class CoffeeDetector:
           # cv2.imshow("dilate", dilate)
           # cv2.imshow("Opening", opening)
           cv2.imshow("closing", closing)
+
+          area = self.calculate_area(closing);
+          print(area)
+
           key_pressed = cv2.waitKey(1)
           if key_pressed % 256 == 27:
             # ESC pressed.
@@ -73,5 +79,28 @@ class CoffeeDetector:
     def release_capture(self):
       self.capture.release()
       cv2.destroyAllWindows()
+
+    def calculate_area(self, image):
+      # Finds the contours in the edged image and keeps the largest one.
+      (_, contours, _) = cv2.findContours(image.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+      if contours is not None:
+        largest_contour = max(contours, key=cv2.contourArea)
+
+        # Computes the bounding box of the largest contour and returns it.
+        # The bounding box contains the (x, y)-coordinates and the width and height (in pixels).
+        bean_bounding_box = cv2.minAreaRect(largest_contour)
+        # Verify that it's not null
+        if bean_bounding_box is not None:
+          # Draws the bounding box of the marker and displays the calculated distance to it.
+          bounding_box = cv2.boxPoints(bean_bounding_box)
+          contour = np.array(bounding_box).reshape((-1, 1, 2)).astype(np.int32)
+          contour_height = tuple(contour[3][0])[1] - tuple(contour[2][0])[1]
+          contour_widgth = tuple(contour[3][0])[0] - tuple(contour[0][0])[0]
+          area = contour_height * contour_widgth
+#          print("contour_widgth", contour_widgth, "contour_height", contour_height, "area", area)
+          cv2.drawContours(self.img, [contour], -1, (0, 255, 0), 2)
+          cv2.putText(self.img, "Maduro", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 200), 4);
+          cv2.imshow("Contour", self.img)
+          return area
 
 
