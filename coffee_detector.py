@@ -1,14 +1,16 @@
 import cv2
 import numpy as np
+from arduino_control import ArduinoControl
 
 class CoffeeDetector:
 
     def __init__(self):
-        self.camera = cv2.VideoCapture(0)
         # Sets the window and the camera.
         cv2.namedWindow("Logitech Camera", cv2.WINDOW_NORMAL)
         self.capture = cv2.VideoCapture(0)
         self.img = None
+        self.arduino_control = ArduinoControl()
+        self.arduino_control.establish_arduino_connection()
 
     def start_capture(self):
       while True:
@@ -20,8 +22,8 @@ class CoffeeDetector:
           break
         else:
           # Operations on the frame come here.
-          self.img = cv2.imread('images/maduro02.jpg')
-          # self.img = frame
+          # self.img = cv2.imread('images/maduro02.jpg')
+          self.img = frame
           # denoise = cv2.fastNlMeansDenoisingColored(img, None, 10, 10, 7, 21)
           filter = self.filter_rgb_ripe(self.img)
           gray = cv2.cvtColor(filter, cv2.COLOR_RGB2GRAY)
@@ -48,6 +50,10 @@ class CoffeeDetector:
 
           area = self.calculate_area(closing);
           print(area)
+          if area > 600:
+            self.arduino_control.write_to_arduino('l')
+          else:
+            self.arduino_control.write_to_arduino('r')
 
           key_pressed = cv2.waitKey(1)
           if key_pressed % 256 == 27:
