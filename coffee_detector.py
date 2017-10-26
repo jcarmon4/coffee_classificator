@@ -3,11 +3,12 @@ import numpy as np
 from arduino_control import ArduinoControl
 
 class CoffeeDetector:
+    AREA_EDGE = 2000
 
     def __init__(self):
         # Sets the window and the camera.
         cv2.namedWindow("Logitech Camera", cv2.WINDOW_NORMAL)
-        self.capture = cv2.VideoCapture(0)
+        self.capture = cv2.VideoCapture(1)
         self.img = None
         self.arduino_control = ArduinoControl()
         self.arduino_control.establish_arduino_connection()
@@ -38,22 +39,34 @@ class CoffeeDetector:
           closing = cv2.morphologyEx(blur, cv2.MORPH_CLOSE, kernel)
 
           # Displays the resulting frame.
-          cv2.imshow("Original", self.img)
-          cv2.imshow("Filter", filter)
+#          cv2.imshow("Original", self.img)
+#          cv2.imshow("Filter", filter)
           # cv2.imshow("Gray scale", gray)
-          cv2.imshow("Blur", blur)
+#          cv2.imshow("Blur", blur)
           # cv2.imshow("Blur Max", blur_max)
           # cv2.imshow("erode", erode)
           # cv2.imshow("dilate", dilate)
           # cv2.imshow("Opening", opening)
-          cv2.imshow("closing", closing)
+#          cv2.imshow("closing", closing)
 
-          area = self.calculate_area(closing);
+          area, contour = self.calculate_area(closing);
           print(area)
-          if area > 600:
-            self.arduino_control.write_to_arduino('l')
+
+          if area == 0:
+              bean_type = "calibrando"
           else:
-            self.arduino_control.write_to_arduino('r')
+              if area > self.AREA_EDGE:
+                bean_type = "maduro"
+                self.arduino_control.write_to_arduino('r')
+              else:
+                bean_type = "verde"
+                self.arduino_control.write_to_arduino('l')
+
+              cv2.drawContours(self.img, [contour], -1, (0, 255, 0), 2)
+
+          cv2.putText(self.img, bean_type, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 200), 4);
+          cv2.imshow("Coffee Detector", self.img)
+
 
           key_pressed = cv2.waitKey(1)
           if key_pressed % 256 == 27:
@@ -87,9 +100,10 @@ class CoffeeDetector:
       cv2.destroyAllWindows()
 
     def calculate_area(self, image):
+      area = 0
       # Finds the contours in the edged image and keeps the largest one.
       (_, contours, _) = cv2.findContours(image.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-      if contours is not None:
+      if len(contours) > 0:
         largest_contour = max(contours, key=cv2.contourArea)
 
         # Computes the bounding box of the largest contour and returns it.
@@ -103,10 +117,16 @@ class CoffeeDetector:
           contour_height = tuple(contour[3][0])[1] - tuple(contour[2][0])[1]
           contour_widgth = tuple(contour[3][0])[0] - tuple(contour[0][0])[0]
           area = contour_height * contour_widgth
-#          print("contour_widgth", contour_widgth, "contour_height", contour_height, "area", area)
-          cv2.drawContours(self.img, [contour], -1, (0, 255, 0), 2)
-          cv2.putText(self.img, "Maduro", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 200), 4);
-          cv2.imshow("Contour", self.img)
-          return area
+    #          print("contour_widgth", contour_widgth, "contour_height", contour_height, "area", area)
+    #       cv2.drawContours(self.img, [contour], -1, (0, 255, 0), 2)
+    #       bean_type = "verde"
+    #       if area > self.AREA_EDGE:
+    #         bean_type = "maduro"
+    #       cv2.putText(self.img, bean_type, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 200), 4);
+    #       cv2.imshow("Contour", self.img)
+          return area, contour
+        else:
+          contour = []
+          return area, contour
 
 
