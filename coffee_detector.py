@@ -8,7 +8,7 @@ class CoffeeDetector:
     def __init__(self):
         # Sets the window and the camera.
         cv2.namedWindow("Logitech Camera", cv2.WINDOW_NORMAL)
-        self.capture = cv2.VideoCapture(1)
+        self.capture = cv2.VideoCapture(0)
         self.img = None
         self.arduino_control = ArduinoControl()
         self.arduino_control.establish_arduino_connection()
