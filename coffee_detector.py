@@ -8,7 +8,7 @@ class CoffeeDetector:
     def __init__(self):
         # Sets the window and the camera.
         cv2.namedWindow("Logitech Camera", cv2.WINDOW_NORMAL)
-        self.capture = cv2.VideoCapture(0)
+        self.capture = cv2.VideoCapture(1)
         self.img = None
         self.arduino_control = ArduinoControl()
         self.arduino_control.establish_arduino_connection()
@@ -23,61 +23,111 @@ class CoffeeDetector:
                 break
             else:
                 # Operations on the frame come here.
-                # self.img = cv2.imread('images/maduro02.jpg')
-                self.img = frame
+                self.img = cv2.imread('frames/green2.png')
+                # self.img = frame
                 # denoise = cv2.fastNlMeansDenoisingColored(img, None, 10, 10, 7, 21)
-                filter = self.filter_rgb_ripe(self.img)
-                gray = cv2.cvtColor(filter, cv2.COLOR_RGB2GRAY)
-                # The bigger the kernel_size value, the more processing time it takes.
-                blur = cv2.GaussianBlur(gray, (3, 3), 0)
-                blur_max = cv2.GaussianBlur(gray, (7, 7), 0)
-                # Morphological transformation
-                kernel = np.ones((18, 18), np.uint8)
-                # erode = cv2.erode(blur, kernel, iterations=1)
-                # dilate = cv2.dilate(blur, kernel, iterations=1)
-                # opening = cv2.morphologyEx(blur, cv2.MORPH_OPEN, kernel)
-                closing = cv2.morphologyEx(blur, cv2.MORPH_CLOSE, kernel)
+                #mask = self.filter_rgb_ripe(self.img)
+                mask = self.filter_hsv_ripe(self.img)
 
-                # Displays the resulting frame.
-                #          cv2.imshow("Original", self.img)
-                #          cv2.imshow("Filter", filter)
-                # cv2.imshow("Gray scale", gray)
-                #          cv2.imshow("Blur", blur)
-                # cv2.imshow("Blur Max", blur_max)
-                # cv2.imshow("erode", erode)
-                # cv2.imshow("dilate", dilate)
-                # cv2.imshow("Opening", opening)
-                #          cv2.imshow("closing", closing)
+                # set my output img to zero everywhere except my mask
+                output_img = self.img.copy()
+                output_img[np.where(mask == 0)] = 0
+                cv2.imshow("Ripe filter", output_img)
 
-                area, contour = self.calculate_area(closing);
-                print(area)
+                mask_green = self.filter_hsv_green(self.img)
 
-                if area < 2000:
-                    bean_type = "calibrando"
-                else:
-                    contour_height = tuple(contour[3][0])[1] - tuple(contour[2][0])[1]
-                    contour_widgth = tuple(contour[3][0])[0] - tuple(contour[0][0])[0]
-                    print("diferencia", abs(contour_height - contour_widgth))
-                    if (abs(contour_height - contour_widgth) > 200):
-                        bean_type = "procesando..."
-                    if area > self.AREA_EDGE:
-                        bean_type = "maduro"
-                        self.arduino_control.write_to_arduino('r')
-                    else:
-                        bean_type = "verde"
-                        self.arduino_control.write_to_arduino('l')
+                # set my output img to zero everywhere except my mask
+                output_img = self.img.copy()
+                output_img[np.where(mask_green == 0)] = 0
+                cv2.imshow("Green filter", output_img)
 
-                    cv2.drawContours(self.img, [contour], -1, (0, 255, 0), 2)
-
-                cv2.putText(self.img, bean_type, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 200), 4);
-                cv2.imshow("Coffee Detector", self.img)
+            key_pressed = cv2.waitKey(1)
+            if key_pressed % 256 == 27:
+                # ESC pressed.
+                print("Escape hit, closing.")
+                break
 
 
-                key_pressed = cv2.waitKey(1)
-                if key_pressed % 256 == 27:
-                    # ESC pressed.
-                    print("Escape hit, closing.")
-                    break
+
+                # gray = cv2.cvtColor(filter, cv2.COLOR_RGB2GRAY)
+                # # The bigger the kernel_size value, the more processing time it takes.
+                # blur = cv2.GaussianBlur(gray, (3, 3), 0)
+                # blur_max = cv2.GaussianBlur(gray, (7, 7), 0)
+                # # Morphological transformation
+                # kernel = np.ones((18, 18), np.uint8)
+                # # erode = cv2.erode(blur, kernel, iterations=1)
+                # # dilate = cv2.dilate(blur, kernel, iterations=1)
+                # # opening = cv2.morphologyEx(blur, cv2.MORPH_OPEN, kernel)
+                # closing = cv2.morphologyEx(blur, cv2.MORPH_CLOSE, kernel)
+                #
+                # # Displays the resulting frame.
+                # #          cv2.imshow("Original", self.img)
+                # #          cv2.imshow("Filter", filter)
+                # # cv2.imshow("Gray scale", gray)
+                # #          cv2.imshow("Blur", blur)
+                # # cv2.imshow("Blur Max", blur_max)
+                # # cv2.imshow("erode", erode)
+                # # cv2.imshow("dilate", dilate)
+                # # cv2.imshow("Opening", opening)
+                # #          cv2.imshow("closing", closing)
+                #
+                # area, contour = self.calculate_area(closing);
+                # print(area)
+                #
+                # if area < 2000:
+                #     bean_type = "calibrando"
+                # else:
+                #     contour_height = tuple(contour[3][0])[1] - tuple(contour[2][0])[1]
+                #     contour_widgth = tuple(contour[3][0])[0] - tuple(contour[0][0])[0]
+                #     print("diferencia", abs(contour_height - contour_widgth))
+                #     if (abs(contour_height - contour_widgth) > 200):
+                #         bean_type = "procesando..."
+                #     if area > self.AREA_EDGE:
+                #         bean_type = "maduro"
+                #         self.arduino_control.write_to_arduino('r')
+                #     else:
+                #         bean_type = "verde"
+                #         self.arduino_control.write_to_arduino('l')
+                #
+                #     cv2.drawContours(self.img, [contour], -1, (0, 255, 0), 2)
+                #
+                # cv2.putText(self.img, bean_type, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 200), 4);
+                # cv2.imshow("Coffee Detector", self.img)
+                #
+                # key_pressed = cv2.waitKey(1)
+                # if key_pressed % 256 == 27:
+                #     # ESC pressed.
+                #     print("Escape hit, closing.")
+                #     break
+
+    def filter_hsv_green(self, image):
+        hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
+        lower_green = np.array([37, 38, 30])  # example value
+        upper_green = np.array([85, 255, 200])  # example value
+        mask = cv2.inRange(hsv, lower_green, upper_green)
+        return mask
+
+        #        output_hsv = hsv.copy()
+        #        output_hsv[np.where(mask == 0)] = 0
+        #        cv2.imshow("Green", output_hsv)
+
+    def filter_hsv_ripe(self, image):
+        hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
+
+        # lower mask (0-10)
+        lower_red = np.array([0, 50, 50])  # example value
+        upper_red = np.array([10, 255, 255])  # example value
+        mask0 = cv2.inRange(hsv, lower_red, upper_red)
+
+        # upper mask (170-180)
+        lower_red = np.array([170, 50, 50])
+        upper_red = np.array([180, 255, 255])
+        mask1 = cv2.inRange(hsv, lower_red, upper_red)
+
+        # join my masks
+        mask = mask0 + mask1
+
+        return mask
 
     # Filters the given image using a green/gray mask.
     def filter_rgb_ripe(self, image):
@@ -95,6 +145,22 @@ class CoffeeDetector:
         maduro_mask_3 = cv2.inRange(image, lower3, upper3)
         # Combines the masks.
         combined_mask = cv2.bitwise_or(maduro_mask_1, maduro_mask_3)
+        # combined_mask = trash_mask
+        masked_image = cv2.bitwise_and(image, image, mask=combined_mask)
+        return masked_image
+
+    # Filters the given image using a green/gray mask.
+    def filter_rgb_green(self, image):
+        # ripe color mask.
+        lower1 = np.uint8([11, 47, 40])
+        upper1 = np.uint8([90, 60, 238])
+        maduro_mask_1 = cv2.inRange(image, lower1, upper1)
+        # ripe color mask.
+        lower2 = np.uint8([8, 33, 119])
+        upper2 = np.uint8([21, 38, 126])
+        maduro_mask_2 = cv2.inRange(image, lower2, upper2)
+        # Combines the masks.
+        combined_mask = cv2.bitwise_or(maduro_mask_1, maduro_mask_2)
         # combined_mask = trash_mask
         masked_image = cv2.bitwise_and(image, image, mask=combined_mask)
         return masked_image
