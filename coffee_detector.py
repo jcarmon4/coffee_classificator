@@ -1,5 +1,8 @@
 import cv2
 import numpy as np
+from datetime import datetime
+from datetime import timedelta
+from time import sleep
 from arduino_control import ArduinoControl
 
 class CoffeeDetector:
@@ -12,9 +15,28 @@ class CoffeeDetector:
         self.img = None
         self.arduino_control = ArduinoControl()
         self.arduino_control.establish_arduino_connection()
+        self.arduino_response = 0
 
     def start_capture(self):
+        start_time = datetime.now()
         while True:
+
+            lap_time = datetime.now()
+            dt = lap_time - start_time
+            start_time = lap_time
+            ms = (dt.days * 24 * 60 * 60 + dt.seconds) * 1000 + dt.microseconds / 1000.0
+            print("microseconds: ", ms, "delta: ", dt)
+            if self.arduino_response == "1":
+                print("self.arduino_response", self.arduino_response)
+                sleep(4)
+                self.arduino_response = 0
+
+                lap_time = datetime.now()
+                dt = lap_time - start_time
+                ms = (dt.days * 24 * 60 * 60 + dt.seconds) * 1000 + dt.microseconds / 1000.0
+                print("microseconds: ", ms, "delta: ", dt)
+
+
             # Captures frame-by-frame.
             ret, frame = self.capture.read()
 
@@ -37,20 +59,24 @@ class CoffeeDetector:
                 green_area, green_contour = self.calculate_area(trasformed_image_green)
 
                 if (ripe_area + green_area) > 1000 :
+                    print("MOVE-----------------------------")
                     if ripe_area > green_area:
                         bean_type = "maduro: "
-                        self.arduino_control.write_to_arduino('r')
+                        self.arduino_response = self.arduino_control.write_to_arduino('r')
                         contour = ripe_contour
-                        print(ripe_area)
+                        print("ripe_area", ripe_area)
                     else:
                         bean_type = "verde: "
-                        self.arduino_control.write_to_arduino('l')
+                        self.arduino_response = self.arduino_control.write_to_arduino('l')
                         contour = green_contour
-                        print(green_area)
+                        print("green_area", green_area)
 
+                    print("arduino_response: ", self.arduino_response)
                     cv2.drawContours(roi, [contour], -1, (0, 255, 0), 2)
+                    sleep(0.4)
                 else:
                     bean_type = "calibrando"
+                    sleep(0.5)
 
                 cv2.putText(roi, bean_type, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 200), 4);
                 cv2.imshow("Coffee Detector", roi)
@@ -63,7 +89,7 @@ class CoffeeDetector:
 
     def image_transformation(self, mask):
         # gray = cv2.cvtColor(filter, cv2.COLOR_RGB2GRAY)
-        denoise = cv2.fastNlMeansDenoising(mask, None, 10, 5, 21)
+        # denoise = cv2.fastNlMeansDenoising(mask, None, 10, 5, 21)
         # The bigger the kernel_size value, the more processing time it takes.
         blur = cv2.GaussianBlur(mask, (3, 3), 0)
         # blur_max = cv2.GaussianBlur(gray, (7, 7), 0)
@@ -75,16 +101,16 @@ class CoffeeDetector:
         closing = cv2.morphologyEx(blur, cv2.MORPH_CLOSE, kernel)
 
         # # Displays the resulting frame.
-        cv2.imshow("Original", self.img)
+        # cv2.imshow("Original", self.img)
         # cv2.imshow("ROI", roi)
         # cv2.imshow("Gray scale", gray)
-        cv2.imshow("Denoise", denoise)
-        cv2.imshow("Blur", blur)
+        # cv2.imshow("Denoise", denoise)
+        # cv2.imshow("Blur", blur)
         # cv2.imshow("Blur Max", blur_max)
         # cv2.imshow("erode", erode)
         # cv2.imshow("dilate", dilate)
         # cv2.imshow("Opening", opening)
-        cv2.imshow("closing", closing)
+        # cv2.imshow("closing", closing)
 
         return closing
 
@@ -134,8 +160,8 @@ class CoffeeDetector:
                     index -= 1
                     contour_height = tuple(contour[index][0])[1] - tuple(contour[index-1][0])[1]
                 contour_widgth = tuple(contour[index-1][0])[0] - tuple(contour[index-2][0])[0]
-                print("contour_height 0: ", tuple(contour[0][0]), " 1: ", tuple(contour[1][0]), " 2: ", tuple(contour[2][0]), "3: ", tuple(contour[3][0]))
-                print("contour_height: ", contour_height, " contour_widgth: ", contour_widgth)
+                # print("contour_height 0: ", tuple(contour[0][0]), " 1: ", tuple(contour[1][0]), " 2: ", tuple(contour[2][0]), "3: ", tuple(contour[3][0]))
+                # print("contour_height: ", contour_height, " contour_widgth: ", contour_widgth)
                 area = contour_height * contour_widgth
 
             return area, contour
