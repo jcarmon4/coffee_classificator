@@ -8,7 +8,7 @@ class CoffeeDetector:
     def __init__(self):
         # Sets the window and the camera.
         cv2.namedWindow("Logitech Camera", cv2.WINDOW_NORMAL)
-        self.capture = cv2.VideoCapture(1)
+        self.capture = cv2.VideoCapture(0)
         self.img = None
         self.arduino_control = ArduinoControl()
         self.arduino_control.establish_arduino_connection()
@@ -23,9 +23,9 @@ class CoffeeDetector:
                 break
             else:
                 # Operations on the frame come here.
-                self.img = cv2.imread('frames/ripe20.png')
+                # self.img = cv2.imread('frames/green20.png')
+                self.img = frame
                 roi = self.img[80:400, 120:520]
-                # self.img = frame
                 #mask = self.filter_rgb_ripe(self.img)
                 mask_ripe = self.filter_hsv_ripe(roi)
 
@@ -43,33 +43,29 @@ class CoffeeDetector:
 
                 gray = mask_ripe
 
-                #gray = cv2.cvtColor(filter, cv2.COLOR_RGB2GRAY)
-                denoise = cv2.fastNlMeansDenoising(gray, None, 10, 5, 21)
-                # The bigger the kernel_size value, the more processing time it takes.
-                blur = cv2.GaussianBlur(gray, (3, 3), 0)
-                # blur_max = cv2.GaussianBlur(gray, (7, 7), 0)
-                # Morphological transformation
-                kernel = np.ones((18, 18), np.uint8)
-                # erode = cv2.erode(blur, kernel, iterations=1)
-                # dilate = cv2.dilate(blur, kernel, iterations=1)
-                # opening = cv2.morphologyEx(blur, cv2.MORPH_OPEN, kernel)
-                closing = cv2.morphologyEx(blur, cv2.MORPH_CLOSE, kernel)
+                trasformed_image_ripe = self.image_transformation(mask_ripe)
+                trasformed_image_green = self.image_transformation(mask_green)
 
-                # # Displays the resulting frame.
-                cv2.imshow("Original", self.img)
-                cv2.imshow("ROI", roi)
-                cv2.imshow("Gray scale", gray)
-                cv2.imshow("Denoise", denoise)
-                cv2.imshow("Blur", blur)
-                # cv2.imshow("Blur Max", blur_max)
-                # cv2.imshow("erode", erode)
-                # cv2.imshow("dilate", dilate)
-                # cv2.imshow("Opening", opening)
-                cv2.imshow("closing", closing)
+                ripe_area, ripe_contour = self.calculate_area(trasformed_image_ripe)
+                green_area, green_contour = self.calculate_area(trasformed_image_green)
 
-                area, contour = self.calculate_area(closing)
-                print(area)
-                cv2.drawContours(roi, [contour], -1, (0, 255, 0), 2)
+                if (ripe_area + green_area) > 1000 :
+                    if ripe_area > green_area:
+                        bean_type = "maduro: "
+                        self.arduino_control.write_to_arduino('r')
+                        contour = ripe_contour
+                        print(ripe_area)
+                    else:
+                        bean_type = "verde: "
+                        self.arduino_control.write_to_arduino('l')
+                        contour = green_contour
+                        print(green_area)
+
+                    cv2.drawContours(roi, [contour], -1, (0, 255, 0), 2)
+                else:
+                    bean_type = "calibrando"
+
+                cv2.putText(roi, bean_type, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 200), 4);
                 cv2.imshow("Coffee Detector", roi)
 
 
@@ -149,6 +145,33 @@ class CoffeeDetector:
                 #     # ESC pressed.
                 #     print("Escape hit, closing.")
                 #     break
+
+    def image_transformation(self, mask):
+        # gray = cv2.cvtColor(filter, cv2.COLOR_RGB2GRAY)
+        denoise = cv2.fastNlMeansDenoising(mask, None, 10, 5, 21)
+        # The bigger the kernel_size value, the more processing time it takes.
+        blur = cv2.GaussianBlur(mask, (3, 3), 0)
+        # blur_max = cv2.GaussianBlur(gray, (7, 7), 0)
+        # Morphological transformation
+        kernel = np.ones((18, 18), np.uint8)
+        # erode = cv2.erode(blur, kernel, iterations=1)
+        # dilate = cv2.dilate(blur, kernel, iterations=1)
+        # opening = cv2.morphologyEx(blur, cv2.MORPH_OPEN, kernel)
+        closing = cv2.morphologyEx(blur, cv2.MORPH_CLOSE, kernel)
+
+        # # Displays the resulting frame.
+        cv2.imshow("Original", self.img)
+        # cv2.imshow("ROI", roi)
+        # cv2.imshow("Gray scale", gray)
+        cv2.imshow("Denoise", denoise)
+        cv2.imshow("Blur", blur)
+        # cv2.imshow("Blur Max", blur_max)
+        # cv2.imshow("erode", erode)
+        # cv2.imshow("dilate", dilate)
+        # cv2.imshow("Opening", opening)
+        cv2.imshow("closing", closing)
+
+        return closing
 
     def filter_hsv_green(self, image):
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
