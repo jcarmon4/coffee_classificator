@@ -23,31 +23,81 @@ class CoffeeDetector:
                 break
             else:
                 # Operations on the frame come here.
-                self.img = cv2.imread('frames/green2.png')
+                self.img = cv2.imread('frames/ripe20.png')
+                roi = self.img[80:400, 120:520]
                 # self.img = frame
-                # denoise = cv2.fastNlMeansDenoisingColored(img, None, 10, 10, 7, 21)
                 #mask = self.filter_rgb_ripe(self.img)
-                mask = self.filter_hsv_ripe(self.img)
+                mask_ripe = self.filter_hsv_ripe(roi)
 
-                # set my output img to zero everywhere except my mask
-                output_img = self.img.copy()
-                output_img[np.where(mask == 0)] = 0
-                cv2.imshow("Ripe filter", output_img)
+                # # set my output img to zero everywhere except my mask
+                # output_img = self.img.copy()
+                # output_img[np.where(mask == 0)] = 0
+                # cv2.imshow("Ripe filter", output_img)
+                #
+                mask_green = self.filter_hsv_green(roi)
+                #
+                # # set my output img to zero everywhere except my mask
+                # output_img = self.img.copy()
+                # output_img[np.where(mask_green == 0)] = 0
+                # cv2.imshow("Green filter", output_img)
 
-                mask_green = self.filter_hsv_green(self.img)
+                gray = mask_ripe
 
-                # set my output img to zero everywhere except my mask
-                output_img = self.img.copy()
-                output_img[np.where(mask_green == 0)] = 0
-                cv2.imshow("Green filter", output_img)
+                #gray = cv2.cvtColor(filter, cv2.COLOR_RGB2GRAY)
+                denoise = cv2.fastNlMeansDenoising(gray, None, 10, 5, 21)
+                # The bigger the kernel_size value, the more processing time it takes.
+                blur = cv2.GaussianBlur(gray, (3, 3), 0)
+                # blur_max = cv2.GaussianBlur(gray, (7, 7), 0)
+                # Morphological transformation
+                kernel = np.ones((18, 18), np.uint8)
+                # erode = cv2.erode(blur, kernel, iterations=1)
+                # dilate = cv2.dilate(blur, kernel, iterations=1)
+                # opening = cv2.morphologyEx(blur, cv2.MORPH_OPEN, kernel)
+                closing = cv2.morphologyEx(blur, cv2.MORPH_CLOSE, kernel)
+
+                # # Displays the resulting frame.
+                cv2.imshow("Original", self.img)
+                cv2.imshow("ROI", roi)
+                cv2.imshow("Gray scale", gray)
+                cv2.imshow("Denoise", denoise)
+                cv2.imshow("Blur", blur)
+                # cv2.imshow("Blur Max", blur_max)
+                # cv2.imshow("erode", erode)
+                # cv2.imshow("dilate", dilate)
+                # cv2.imshow("Opening", opening)
+                cv2.imshow("closing", closing)
+
+                area, contour = self.calculate_area(closing)
+                print(area)
+                cv2.drawContours(roi, [contour], -1, (0, 255, 0), 2)
+                cv2.imshow("Coffee Detector", roi)
+
+
+                # if area < 2000:
+                #     bean_type = "calibrando"
+                # else:
+                #     contour_height = tuple(contour[3][0])[1] - tuple(contour[2][0])[1]
+                #     contour_widgth = tuple(contour[3][0])[0] - tuple(contour[0][0])[0]
+                #     print("diferencia", abs(contour_height - contour_widgth))
+                #     if (abs(contour_height - contour_widgth) > 200):
+                #         bean_type = "procesando..."
+                #     if area > self.AREA_EDGE:
+                #         bean_type = "maduro"
+                #         self.arduino_control.write_to_arduino('r')
+                #     else:
+                #         bean_type = "verde"
+                #         self.arduino_control.write_to_arduino('l')
+                #
+                #     cv2.drawContours(self.img, [contour], -1, (0, 255, 0), 2)
+                #
+                # cv2.putText(self.img, bean_type, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 200), 4);
+                # cv2.imshow("Coffee Detector", self.img)
 
             key_pressed = cv2.waitKey(1)
             if key_pressed % 256 == 27:
                 # ESC pressed.
                 print("Escape hit, closing.")
                 break
-
-
 
                 # gray = cv2.cvtColor(filter, cv2.COLOR_RGB2GRAY)
                 # # The bigger the kernel_size value, the more processing time it takes.
@@ -101,7 +151,7 @@ class CoffeeDetector:
                 #     break
 
     def filter_hsv_green(self, image):
-        hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         lower_green = np.array([37, 38, 30])  # example value
         upper_green = np.array([85, 255, 200])  # example value
         mask = cv2.inRange(hsv, lower_green, upper_green)
@@ -112,7 +162,7 @@ class CoffeeDetector:
         #        cv2.imshow("Green", output_hsv)
 
     def filter_hsv_ripe(self, image):
-        hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
         # lower mask (0-10)
         lower_red = np.array([0, 50, 50])  # example value
@@ -185,8 +235,14 @@ class CoffeeDetector:
                 # Draws the bounding box of the marker and displays the calculated distance to it.
                 bounding_box = cv2.boxPoints(bean_bounding_box)
                 contour = np.array(bounding_box).reshape((-1, 1, 2)).astype(np.int32)
-                contour_height = tuple(contour[3][0])[1] - tuple(contour[2][0])[1]
-                contour_widgth = tuple(contour[3][0])[0] - tuple(contour[0][0])[0]
+                index = 3
+                contour_height = tuple(contour[index][0])[1] - tuple(contour[index-1][0])[1]
+                if contour_height < 1000:
+                    index -= 1
+                    contour_height = tuple(contour[index][0])[1] - tuple(contour[index-1][0])[1]
+                contour_widgth = tuple(contour[index-1][0])[0] - tuple(contour[index-2][0])[0]
+                print("contour_height 0: ", tuple(contour[0][0]), " 1: ", tuple(contour[1][0]), " 2: ", tuple(contour[2][0]), "3: ", tuple(contour[3][0]))
+                print("contour_height: ", contour_height, " contour_widgth: ", contour_widgth)
                 area = contour_height * contour_widgth
 
             return area, contour
