@@ -26,22 +26,9 @@ class CoffeeDetector:
                 # self.img = cv2.imread('frames/green20.png')
                 self.img = frame
                 roi = self.img[80:400, 120:520]
-                #mask = self.filter_rgb_ripe(self.img)
+
                 mask_ripe = self.filter_hsv_ripe(roi)
-
-                # # set my output img to zero everywhere except my mask
-                # output_img = self.img.copy()
-                # output_img[np.where(mask == 0)] = 0
-                # cv2.imshow("Ripe filter", output_img)
-                #
                 mask_green = self.filter_hsv_green(roi)
-                #
-                # # set my output img to zero everywhere except my mask
-                # output_img = self.img.copy()
-                # output_img[np.where(mask_green == 0)] = 0
-                # cv2.imshow("Green filter", output_img)
-
-                gray = mask_ripe
 
                 trasformed_image_ripe = self.image_transformation(mask_ripe)
                 trasformed_image_green = self.image_transformation(mask_green)
@@ -68,83 +55,11 @@ class CoffeeDetector:
                 cv2.putText(roi, bean_type, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 200), 4);
                 cv2.imshow("Coffee Detector", roi)
 
-
-                # if area < 2000:
-                #     bean_type = "calibrando"
-                # else:
-                #     contour_height = tuple(contour[3][0])[1] - tuple(contour[2][0])[1]
-                #     contour_widgth = tuple(contour[3][0])[0] - tuple(contour[0][0])[0]
-                #     print("diferencia", abs(contour_height - contour_widgth))
-                #     if (abs(contour_height - contour_widgth) > 200):
-                #         bean_type = "procesando..."
-                #     if area > self.AREA_EDGE:
-                #         bean_type = "maduro"
-                #         self.arduino_control.write_to_arduino('r')
-                #     else:
-                #         bean_type = "verde"
-                #         self.arduino_control.write_to_arduino('l')
-                #
-                #     cv2.drawContours(self.img, [contour], -1, (0, 255, 0), 2)
-                #
-                # cv2.putText(self.img, bean_type, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 200), 4);
-                # cv2.imshow("Coffee Detector", self.img)
-
             key_pressed = cv2.waitKey(1)
             if key_pressed % 256 == 27:
                 # ESC pressed.
                 print("Escape hit, closing.")
                 break
-
-                # gray = cv2.cvtColor(filter, cv2.COLOR_RGB2GRAY)
-                # # The bigger the kernel_size value, the more processing time it takes.
-                # blur = cv2.GaussianBlur(gray, (3, 3), 0)
-                # blur_max = cv2.GaussianBlur(gray, (7, 7), 0)
-                # # Morphological transformation
-                # kernel = np.ones((18, 18), np.uint8)
-                # # erode = cv2.erode(blur, kernel, iterations=1)
-                # # dilate = cv2.dilate(blur, kernel, iterations=1)
-                # # opening = cv2.morphologyEx(blur, cv2.MORPH_OPEN, kernel)
-                # closing = cv2.morphologyEx(blur, cv2.MORPH_CLOSE, kernel)
-                #
-                # # Displays the resulting frame.
-                # #          cv2.imshow("Original", self.img)
-                # #          cv2.imshow("Filter", filter)
-                # # cv2.imshow("Gray scale", gray)
-                # #          cv2.imshow("Blur", blur)
-                # # cv2.imshow("Blur Max", blur_max)
-                # # cv2.imshow("erode", erode)
-                # # cv2.imshow("dilate", dilate)
-                # # cv2.imshow("Opening", opening)
-                # #          cv2.imshow("closing", closing)
-                #
-                # area, contour = self.calculate_area(closing);
-                # print(area)
-                #
-                # if area < 2000:
-                #     bean_type = "calibrando"
-                # else:
-                #     contour_height = tuple(contour[3][0])[1] - tuple(contour[2][0])[1]
-                #     contour_widgth = tuple(contour[3][0])[0] - tuple(contour[0][0])[0]
-                #     print("diferencia", abs(contour_height - contour_widgth))
-                #     if (abs(contour_height - contour_widgth) > 200):
-                #         bean_type = "procesando..."
-                #     if area > self.AREA_EDGE:
-                #         bean_type = "maduro"
-                #         self.arduino_control.write_to_arduino('r')
-                #     else:
-                #         bean_type = "verde"
-                #         self.arduino_control.write_to_arduino('l')
-                #
-                #     cv2.drawContours(self.img, [contour], -1, (0, 255, 0), 2)
-                #
-                # cv2.putText(self.img, bean_type, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 200), 4);
-                # cv2.imshow("Coffee Detector", self.img)
-                #
-                # key_pressed = cv2.waitKey(1)
-                # if key_pressed % 256 == 27:
-                #     # ESC pressed.
-                #     print("Escape hit, closing.")
-                #     break
 
     def image_transformation(self, mask):
         # gray = cv2.cvtColor(filter, cv2.COLOR_RGB2GRAY)
@@ -180,10 +95,6 @@ class CoffeeDetector:
         mask = cv2.inRange(hsv, lower_green, upper_green)
         return mask
 
-        #        output_hsv = hsv.copy()
-        #        output_hsv[np.where(mask == 0)] = 0
-        #        cv2.imshow("Green", output_hsv)
-
     def filter_hsv_ripe(self, image):
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
@@ -201,47 +112,6 @@ class CoffeeDetector:
         mask = mask0 + mask1
 
         return mask
-
-    # Filters the given image using a green/gray mask.
-    def filter_rgb_ripe(self, image):
-        # ripe color mask.
-        lower1 = np.uint8([11, 47, 40])
-        upper1 = np.uint8([90, 60, 238])
-        maduro_mask_1 = cv2.inRange(image, lower1, upper1)
-        # ripe color mask.
-        lower2 = np.uint8([8, 33, 119])
-        upper2 = np.uint8([21, 38, 126])
-        maduro_mask_2 = cv2.inRange(image, lower2, upper2)
-        # ripe color mask.
-        lower3 = np.uint8([5, 31, 97])
-        upper3 = np.uint8([24, 85, 243])
-        maduro_mask_3 = cv2.inRange(image, lower3, upper3)
-        # Combines the masks.
-        combined_mask = cv2.bitwise_or(maduro_mask_1, maduro_mask_3)
-        # combined_mask = trash_mask
-        masked_image = cv2.bitwise_and(image, image, mask=combined_mask)
-        return masked_image
-
-    # Filters the given image using a green/gray mask.
-    def filter_rgb_green(self, image):
-        # ripe color mask.
-        lower1 = np.uint8([11, 47, 40])
-        upper1 = np.uint8([90, 60, 238])
-        maduro_mask_1 = cv2.inRange(image, lower1, upper1)
-        # ripe color mask.
-        lower2 = np.uint8([8, 33, 119])
-        upper2 = np.uint8([21, 38, 126])
-        maduro_mask_2 = cv2.inRange(image, lower2, upper2)
-        # Combines the masks.
-        combined_mask = cv2.bitwise_or(maduro_mask_1, maduro_mask_2)
-        # combined_mask = trash_mask
-        masked_image = cv2.bitwise_and(image, image, mask=combined_mask)
-        return masked_image
-
-    # When everything is done, releases the capture.
-    def release_capture(self):
-        self.capture.release()
-        cv2.destroyAllWindows()
 
     def calculate_area(self, image):
         area = 0
@@ -272,3 +142,7 @@ class CoffeeDetector:
         else:
             contour = []
             return area, contour
+
+    def release_capture(self):
+        self.capture.release()
+        cv2.destroyAllWindows()
