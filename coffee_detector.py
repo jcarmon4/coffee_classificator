@@ -11,7 +11,7 @@ class CoffeeDetector:
     def __init__(self):
         # Sets the window and the camera.
         cv2.namedWindow("Logitech Camera", cv2.WINDOW_NORMAL)
-        self.capture = cv2.VideoCapture(0)
+        self.capture = cv2.VideoCapture(1)
         self.img = None
         self.arduino_control = ArduinoControl()
         self.arduino_control.establish_arduino_connection()
@@ -28,7 +28,15 @@ class CoffeeDetector:
             print("microseconds: ", ms, "delta: ", dt)
             if self.arduino_response == "1":
                 print("self.arduino_response", self.arduino_response)
-                sleep(4)
+                self.img = None
+                frame = None
+                roi = None
+                for i in range(0, 5):
+                    # Captures frame-by-frame.
+                    ret, frame = self.capture.read()
+                    print("For ", i)
+
+                sleep(0.5)
                 self.arduino_response = 0
 
                 lap_time = datetime.now()
@@ -47,7 +55,7 @@ class CoffeeDetector:
                 # Operations on the frame come here.
                 # self.img = cv2.imread('frames/green20.png')
                 self.img = frame
-                roi = self.img[80:400, 120:520]
+                roi = self.img[80:400, 120:430]
 
                 mask_ripe = self.filter_hsv_ripe(roi)
                 mask_green = self.filter_hsv_green(roi)
@@ -76,7 +84,6 @@ class CoffeeDetector:
                     sleep(0.4)
                 else:
                     bean_type = "calibrando"
-                    sleep(0.5)
 
                 cv2.putText(roi, bean_type, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 200), 4);
                 cv2.imshow("Coffee Detector", roi)

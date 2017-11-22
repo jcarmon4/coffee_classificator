@@ -2,9 +2,9 @@ from time import sleep
 import serial
 
 class ArduinoControl:
-    ARDUINO_PORT = "/dev/ttyACM0"
-    #ARDUINO_PORT = "COM8"
-    RATE = 9600
+    #ARDUINO_PORT = "/dev/ttyACM0"
+    ARDUINO_PORT = "COM17"
+    RATE = 115200
 
     def __init__(self):
         self.arduino = serial.Serial(self.ARDUINO_PORT, self.RATE)
