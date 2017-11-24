@@ -13,9 +13,13 @@ class CoffeeDetector:
         cv2.namedWindow("Logitech Camera", cv2.WINDOW_NORMAL)
         self.capture = cv2.VideoCapture(1)
         self.img = None
+        self.roi = None
         self.arduino_control = ArduinoControl()
         self.arduino_control.establish_arduino_connection()
         self.arduino_response = 0
+        self.num_ripe = 0
+        self.num_green = 0
+        self.weight = 0
 
     def start_capture(self):
         start_time = datetime.now()
@@ -28,9 +32,10 @@ class CoffeeDetector:
             print("microseconds: ", ms, "delta: ", dt)
             if self.arduino_response == "1":
                 print("self.arduino_response", self.arduino_response)
+                # self.weight = float(self.arduino_response)
                 self.img = None
                 frame = None
-                roi = None
+                self.roi = None
                 for i in range(0, 5):
                     # Captures frame-by-frame.
                     ret, frame = self.capture.read()
@@ -53,12 +58,12 @@ class CoffeeDetector:
                 break
             else:
                 # Operations on the frame come here.
-                # self.img = cv2.imread('frames/green20.png')
                 self.img = frame
-                roi = self.img[80:400, 120:430]
+                # self.img = cv2.imread('frames/green20.png')
+                self.roi = self.img[80:400, 120:430]
 
-                mask_ripe = self.filter_hsv_ripe(roi)
-                mask_green = self.filter_hsv_green(roi)
+                mask_ripe = self.filter_hsv_ripe(self.roi)
+                mask_green = self.filter_hsv_green(self.roi)
 
                 trasformed_image_ripe = self.image_transformation(mask_ripe)
                 trasformed_image_green = self.image_transformation(mask_green)
@@ -69,24 +74,26 @@ class CoffeeDetector:
                 if (ripe_area + green_area) > 1000 :
                     print("MOVE-----------------------------")
                     if ripe_area > green_area:
-                        bean_type = "maduro: "
+                        bean_type = "Ripe"
                         self.arduino_response = self.arduino_control.write_to_arduino('r')
                         contour = ripe_contour
+                        self.num_ripe += 1
                         print("ripe_area", ripe_area)
                     else:
-                        bean_type = "verde: "
+                        bean_type = "Green"
                         self.arduino_response = self.arduino_control.write_to_arduino('l')
                         contour = green_contour
+                        self.num_green += 1
                         print("green_area", green_area)
 
                     print("arduino_response: ", self.arduino_response)
-                    cv2.drawContours(roi, [contour], -1, (0, 255, 0), 2)
+                    cv2.drawContours(self.roi, [contour], -1, (0, 255, 0), 2)
                     sleep(0.4)
                 else:
                     bean_type = "calibrando"
 
-                cv2.putText(roi, bean_type, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 200), 4);
-                cv2.imshow("Coffee Detector", roi)
+                cv2.putText(self.roi, bean_type, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 200), 4);
+                cv2.imshow("Coffee Detector", self.roi)
 
             key_pressed = cv2.waitKey(1)
             if key_pressed % 256 == 27:
@@ -109,14 +116,14 @@ class CoffeeDetector:
 
         # # Displays the resulting frame.
         # cv2.imshow("Original", self.img)
-        # cv2.imshow("ROI", roi)
-        # cv2.imshow("Gray scale", gray)
-        # cv2.imshow("Denoise", denoise)
+        # cv2.imshow("ROI", self.roi)
+        # # cv2.imshow("Gray scale", gray)
+        # # cv2.imshow("Denoise", denoise)
         # cv2.imshow("Blur", blur)
-        # cv2.imshow("Blur Max", blur_max)
-        # cv2.imshow("erode", erode)
-        # cv2.imshow("dilate", dilate)
-        # cv2.imshow("Opening", opening)
+        # # cv2.imshow("Blur Max", blur_max)
+        # # cv2.imshow("erode", erode)
+        # # cv2.imshow("dilate", dilate)
+        # # cv2.imshow("Opening", opening)
         # cv2.imshow("closing", closing)
 
         return closing
@@ -177,5 +184,7 @@ class CoffeeDetector:
             return area, contour
 
     def release_capture(self):
+        self.num_ripe = 0
+        self.num_green = 0
         self.capture.release()
         cv2.destroyAllWindows()
